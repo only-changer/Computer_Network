@@ -1,0 +1,110 @@
+HTTP/1.1 200 OK
+Date: Wed, 10 Oct 2018 04:43:03 GMT
+Server: Apache/2.2.15 (Linux/SUSE)
+Last-Modified: Tue, 28 Mar 2017 01:57:55 GMT
+ETag: "5da202f-52d-54bc0c9cccec0"
+Accept-Ranges: bytes
+Content-Length: 1325
+Keep-Alive: timeout=15, max=100
+Connection: Keep-Alive
+Content-Type: text/css
+
+﻿body{
+	margin-left: 20px;
+}
+
+
+h1{
+	font-size: 18px;
+	font-family: Arial;
+	font-weight: bold;
+	margin-top: 20px;
+	margin-bottom: 10px;
+	color: #BF0000;
+}
+
+h2{
+	font-size:14px;
+	font-family:"Arial";
+	font-weight:bold;
+	margin-top:10px;
+	margin-bottom:5px;
+}
+
+h3{
+	font-size:12px;
+	font-family:"Arial";
+	font-weight:bold;
+	margin-top:5px;
+	margin-bottom:2px;
+}
+
+
+
+p{
+	margin: 5px 10px 3px 10px;
+	font-size: 12px;
+	font-family: "Arial";
+	font-weight: normal;
+	line-height: 130%;
+	color: #000000;
+}
+
+.content {
+	margin-left:20px;
+}
+
+.title{
+	font-size: 28px;
+	font-family: "Arial";
+	color: #000086;
+	font-weight: bold;
+	text-align: center;
+	margin: 30px 20px 20px 30px;
+}
+
+ul {
+	list-style-type:circle;
+	margin: 0; 
+	padding: 0;
+}
+
+li{
+	background: none;
+	margin-left:15px;
+	padding: 3px 0 3px 0px;
+	font-size:12px;
+	font-family:"Arial";
+	font-weight:normal
+}
+
+ol {
+	list-style-type: decimal;
+}
+
+a{
+				text-decoration: none;
+				color:blue;
+}
+
+a:visited{
+				text-decoration: none;
+				color:blue;
+}
+
+table{
+	margin: 5px 10px 3px 10px;
+	font-size: 12px;
+	font-family: "Arial";
+	font-weight: normal;
+	line-height: 130%;
+	color: #333333;
+}
+
+.containing_div{
+	margin:0px 0px 0px 15px
+}
+
+.leftframe_div{
+	margin:20px 0px 0px 0px
+}

@@ -1,0 +1,49 @@
+HTTP/1.1 200 OK
+Date: Wed, 10 Oct 2018 04:43:02 GMT
+Server: Apache/2.2.15 (Linux/SUSE)
+Last-Modified: Tue, 21 Mar 2017 03:10:04 GMT
+ETag: "5da0906-22c-54b34faf07b00"
+Accept-Ranges: bytes
+Content-Length: 556
+Keep-Alive: timeout=15, max=100
+Connection: Keep-Alive
+Content-Type: text/html
+
+﻿<html>
+
+
+
+<head>
+
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+
+<title> Computer Networking @ Shanghai Jiao Tong University </title>
+
+</head>
+
+
+
+<frameset cols="170,*" border="1" frameborder="yes" framespacing="2">
+
+	<frame name="contents" src="LeftFramePage.htm" target="main" frameborder="yes"  scrolling="no" noresize="noresize">
+
+	<frame name="main" src="MainPage.htm" target="_self">
+
+</frameset>
+
+<noframes></noframes>
+
+<body>
+
+
+
+<p>此网页使用了框架，但您的浏览器不支持框架。</p>
+
+
+
+</body>
+
+
+
+</html>
+
