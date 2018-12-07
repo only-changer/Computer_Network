@@ -33,69 +33,28 @@ public class RouteTable
      * @param ip IP address
      * @return the matching route entry, null if none exists
      */
-    public Integer[] toBinary(int ip)
-    {
-        Integer ans[] = new Integer[100];
-        int n = 0;
-        while (ip > 0)
-        {
-            ans[n + 1] = ip % 256;
-            ip = ip / 256;
-            ++n;
-        }
-        for (int i = 1;i <= n / 2; ++i)
-        {
-            int temp = ans[i];
-            ans[i] = ans[n - i + 1];
-            ans[n - i + 1] = temp;
-        }
-        ans[0] = n;
-        return ans;
-    }
-    public void printArray(Integer[] out)
-    {
-        for (int i = 1;i < out[0];++i)
-        {
-            System.out.print(out[i].toString() + '.');
-        }
-        System.out.println(out[out[0]]);
-    }
     public RouteEntry lookup(int ip)
     {
-        System.out.println(ip);
-        printArray(toBinary(ip));
         synchronized(this.entries)
         {
             /*****************************************************************/
             /* TODO: Find the route entry with the longest prefix match      */
-            Integer max = 0;
-            RouteEntry maxMacth = entries.get(0);
-            Integer[] src = toBinary(ip);
-            for (RouteEntry e : entries)
+
+            RouteEntry bestMatch = null;
+            for (RouteEntry entry : this.entries)
             {
-                System.out.println(e.getDestinationAddress());
-                printArray(toBinary(e.getDestinationAddress()));
-                System.out.println(e.getGatewayAddress());
-                printArray(toBinary(e.getGatewayAddress()));
-                System.out.println(e.getMaskAddress());
-                printArray(toBinary(e.getMaskAddress()));
-                Integer[] dest = toBinary(e.getDestinationAddress());
-                Integer m = 0;
-                for (int i = 1; i <= src[0]; ++i)
+                int maskedDst = ip & entry.getMaskAddress();
+                int entrySubnet = entry.getDestinationAddress()
+                        & entry.getMaskAddress();
+                if (maskedDst == entrySubnet)
                 {
-                    if (src[i].equals(dest[i])) ++m;
-                    else
-                        break;
-                }
-                if (m > max)
-                {
-                    max = m;
-                    maxMacth = e;
+                    if ((null == bestMatch)
+                            || (entry.getMaskAddress() > bestMatch.getMaskAddress()))
+                    { bestMatch = entry; }
                 }
             }
-            if (max > 0) return maxMacth;
-            else
-                return null;
+
+            return bestMatch;
 
             /*****************************************************************/
         }
