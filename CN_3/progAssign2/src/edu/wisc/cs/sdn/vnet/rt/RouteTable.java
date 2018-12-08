@@ -20,7 +20,7 @@ import edu.wisc.cs.sdn.vnet.Iface;
 public class RouteTable
 {
     /** Entries in the route table */
-    private List<RouteEntry> entries;
+    public List<RouteEntry> entries;
 
     /**
      * Initialize an empty route table.
@@ -168,6 +168,7 @@ public class RouteTable
         }
     }
 
+
     /**
      * Remove an entry from the route table.
      * @param dstIP destination IP of the entry to remove
@@ -214,7 +215,7 @@ public class RouteTable
      * @param maskIp subnet mask of the entry to find
      * @return a matching entry if one was found, otherwise null
      */
-    private RouteEntry find(int dstIp, int maskIp)
+    public RouteEntry find(int dstIp, int maskIp)
     {
         synchronized(this.entries)
         {

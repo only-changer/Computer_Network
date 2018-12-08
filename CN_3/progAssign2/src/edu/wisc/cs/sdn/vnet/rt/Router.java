@@ -4,14 +4,10 @@ import edu.wisc.cs.sdn.vnet.Device;
 import edu.wisc.cs.sdn.vnet.DumpFile;
 import edu.wisc.cs.sdn.vnet.Iface;
 
-import net.floodlightcontroller.packet.Ethernet;
-import net.floodlightcontroller.packet.IPv4;
-import net.floodlightcontroller.packet.MACAddress;
-import net.floodlightcontroller.packet.ICMP;
-import net.floodlightcontroller.packet.Data;
+import net.floodlightcontroller.packet.*;
+
 import java.util.*;
 import java.nio.ByteBuffer;
-import net.floodlightcontroller.packet.ARP;
 import  java.util.Map;
 import javax.swing.event.InternalFrameEvent;
 
@@ -27,7 +23,17 @@ public class Router extends Device
     private ArpCache arpCache;
 
     private static Map<Integer,Vector<Ethernet>> queue;
+    class RIPInternalEntry {
+        int metric;
+        long timestamp;
 
+        public RIPInternalEntry(int metric, long timestamp) {
+            this.metric = metric;
+            this.timestamp = timestamp;
+        }
+    }
+    Map<String, RIPInternalEntry> ripInternalMap = Collections
+            .synchronizedMap(new HashMap<String, RIPInternalEntry>());
     /**
      * Creates a router for a specific host.
      * @param host hostname for the router
@@ -63,7 +69,61 @@ public class Router extends Device
         System.out.print(this.routeTable.toString());
         System.out.println("-------------------------------------------------");
     }
+    private void sendRIPPacket(Iface iface, int destIp,
+                               byte[] destMac, byte command)
+    {
+        Ethernet ethernet = new Ethernet();
+        ethernet.setEtherType(Ethernet.TYPE_IPv4);
+        ethernet.setDestinationMACAddress(destMac);
+        ethernet.setSourceMACAddress(iface.getMacAddress().toBytes());
 
+        UDP udp = new UDP();
+        udp.setDestinationPort(UDP.RIP_PORT);
+        udp.setSourcePort(UDP.RIP_PORT);
+
+        IPv4 ip = new IPv4();
+        ip.setDestinationAddress(destIp);
+        ip.setSourceAddress(iface.getIpAddress());
+        ip.setTtl((byte) 16);
+        ip.setProtocol(IPv4.PROTOCOL_UDP);
+
+        RIPv2 rip = new RIPv2();
+
+        rip.setCommand(command);
+
+        for (RouteEntry routeEntry : routeTable.entries)
+        {
+            int dstIP = routeEntry.getDestinationAddress();
+            int mask = routeEntry.getMaskAddress();
+            int metric = routeEntry.metric;
+
+            RIPv2Entry ripEntry = new RIPv2Entry(dstIP, mask, metric);
+            ripEntry.setNextHopAddress(iface.getIpAddress());
+            rip.addEntry(ripEntry);
+        }
+
+        udp.setPayload(rip);
+        ip.setPayload(udp);
+        ethernet.setPayload(ip);
+        sendPacket(ethernet,iface);
+    }
+    public void startRIP()
+    {
+        for (Iface di : interfaces.values()) {
+            int mask = di.getSubnetMask();
+            int na = di.getIpAddress() & mask;
+            routeTable.insert(na, 0, mask, di);
+            ripInternalMap.put(na + "," + mask,
+                    new RIPInternalEntry(0, -1));
+            System.out.println(na);
+            System.out.println(mask);
+            System.out.println(di);
+            System.out.println("R.I.P.");
+            sendRIPPacket(di, IPv4.toIPv4Address("224.0.0.9"), MACAddress.valueOf("FF:FF:FF:FF:FF:FF").toBytes(),
+                    RIPv2.COMMAND_REQUEST);
+        }
+
+    }
     /**
      * Load a new ARP cache from a file.
      * @param arpCacheFile the name of the file containing the ARP cache
@@ -199,6 +259,21 @@ public class Router extends Device
                     ether.toString().replace("\n", "\n\t"));
         }
     }
+    private byte[] getDestinationMacOfNextHop(int dstAddr) {
+        RouteEntry bestMatch = routeTable.lookup(dstAddr);
+        if (null == bestMatch) {
+            return null;
+        }
+        int nextHop = bestMatch.getGatewayAddress();
+        if (0 == nextHop) {
+            nextHop = dstAddr;
+        }
+        ArpEntry arpEntry = arpCache.lookup(nextHop);
+        if (null == arpEntry) {
+            return null;
+        }
+        return arpEntry.getMac().toBytes();
+    }
     public void handlePacket(Ethernet etherPacket, Iface inIface)
     {
         System.out.println("*** -> Received packet: " +
@@ -243,6 +318,76 @@ public class Router extends Device
             return;
         }
         IPv4 packet =  (IPv4) etherPacket.getPayload();
+        if (packet.getPayload() instanceof UDP )
+        {
+            UDP udp = (UDP) packet.getPayload();
+            if (udp.getDestinationPort() == 520)
+            {
+                RIPv2 rip = (RIPv2) udp.getPayload();
+                if (rip.getCommand() == RIPv2.COMMAND_RESPONSE)
+                {
+                    boolean modified = false;
+                    for (RIPv2Entry entry : rip.getEntries()) {
+                        int na = entry.getAddress();
+                        int mask = entry.getSubnetMask();
+                        int metric = entry.getMetric() + 1;
+                        int ip = entry.getNextHopAddress();
+                        String hashKey = na + "," + mask;
+                        boolean shouldAdd = !(ripInternalMap.containsKey(hashKey) && metric >= ripInternalMap
+                                .get(hashKey).metric);
+                        if (shouldAdd) {
+                            if (routeTable.find(na, mask) != null) {
+                                routeTable.remove(na, mask);
+                            }
+                            routeTable.insert(na, ip, mask, inIface);
+                            ripInternalMap
+                                    .put(hashKey,
+                                            new RIPInternalEntry(metric, System
+                                                    .currentTimeMillis()));
+                            modified = true;
+                        }
+                    }
+                    if (modified) {
+                        for (Iface i : interfaces.values()) {
+                            sendRIPPacket(i, IPv4.toIPv4Address("224.0.0.9"), MACAddress.valueOf("FF:FF:FF:FF:FF:FF").toBytes(),
+                                    RIPv2.COMMAND_RESPONSE);
+                        }
+                    }
+                } else
+                {
+                    RouteEntry dest = this.routeTable.lookup(packet.getDestinationAddress());
+                    byte[] destMac = getDestinationMacOfNextHop(packet.getSourceAddress());
+                    if (null == destMac)
+                    {
+                        etherPacket.setSourceMACAddress(destMac);
+                        int targetIP = packet.getSourceAddress();
+                        if (queue == null)
+                            queue = new HashMap<Integer,Vector<Ethernet>>();
+                        if (queue.containsKey(targetIP))
+                        {
+                            queue.get(targetIP).add(etherPacket);
+                        }
+                        else
+                        {
+                            System.out.println(targetIP);
+                            queue.put(targetIP,new Vector<Ethernet>());
+                            System.out.println("??????????");
+                            System.out.println(queue.size());
+                            System.out.println(queue.containsKey(targetIP));
+                            queue.get(targetIP).add(etherPacket);
+                        }
+                        sendARPPacket(etherPacket,dest.getInterface(),true,targetIP);
+                        System.out.println("arp not found!");
+                        return;
+                    } else {
+                        for (Iface i : interfaces.values()) {
+                            sendRIPPacket(i, IPv4.toIPv4Address("224.0.0.9"), MACAddress.valueOf("FF:FF:FF:FF:FF:FF").toBytes(),
+                                    RIPv2.COMMAND_RESPONSE);
+                        }
+                    }
+                }
+            }
+        }
         if (packet.getProtocol() == IPv4.PROTOCOL_TCP || packet.getProtocol() == IPv4.PROTOCOL_UDP)
         {
             sendICMPPacket(packet,inIface,3,3,false);
@@ -361,10 +506,8 @@ public class Router extends Device
                 System.out.println(queue.size());
                 System.out.println(queue.containsKey(targetIP));
                 queue.get(targetIP).add(etherPacket);
-
             }
             sendARPPacket(etherPacket,dest.getInterface(),true,targetIP);
-            //sendICMPPacket(packet, inIface, 3, 1,false);
             System.out.println("arp not found!");
             return;
         }
