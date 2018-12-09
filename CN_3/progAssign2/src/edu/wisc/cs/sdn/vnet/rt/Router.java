@@ -136,11 +136,6 @@ public class Router extends Device
                     + arpCacheFile);
             System.exit(1);
         }
-
-        System.out.println("Loaded static ARP cache");
-        System.out.println("----------------------------------");
-        System.out.print(this.arpCache.toString());
-        System.out.println("----------------------------------");
     }
 
     /**
@@ -359,7 +354,7 @@ public class Router extends Device
                     byte[] destMac = getDestinationMacOfNextHop(packet.getSourceAddress());
                     if (null == destMac)
                     {
-                        etherPacket.setSourceMACAddress(destMac);
+                        etherPacket.setSourceMACAddress(inIface.getMacAddress().toBytes());
                         int targetIP = packet.getSourceAddress();
                         if (queue == null)
                             queue = new HashMap<Integer,Vector<Ethernet>>();
@@ -376,7 +371,7 @@ public class Router extends Device
                             System.out.println(queue.containsKey(targetIP));
                             queue.get(targetIP).add(etherPacket);
                         }
-                        sendARPPacket(etherPacket,dest.getInterface(),true,targetIP);
+                        sendARPPacket(etherPacket,inIface,true,targetIP);
                         System.out.println("arp not found!");
                         return;
                     } else {
@@ -390,9 +385,10 @@ public class Router extends Device
         }
         if (packet.getProtocol() == IPv4.PROTOCOL_TCP || packet.getProtocol() == IPv4.PROTOCOL_UDP)
         {
-            sendICMPPacket(packet,inIface,3,3,false);
-            return;
+            //sendICMPPacket(packet,inIface,3,3,false);
+            //return;
         }
+        arpCache.insert(etherPacket.getSourceMAC(),packet.getSourceAddress());
         // checksum
         byte[] data = new byte[packet.getHeaderLength() * 4];
         ByteBuffer bb = ByteBuffer.wrap(data);
@@ -508,6 +504,7 @@ public class Router extends Device
                 queue.get(targetIP).add(etherPacket);
             }
             sendARPPacket(etherPacket,dest.getInterface(),true,targetIP);
+            sendICMPPacket(packet,inIface,3,3,false);
             System.out.println("arp not found!");
             return;
         }
